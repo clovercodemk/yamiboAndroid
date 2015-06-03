@@ -26,7 +26,7 @@ import com.baidu.location.BDLocation;
 import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
-import com.yamibo.main.yamibolib.locationservice.impl.BDLocationApplication;
+import com.yamibo.main.yamibolib.locationservice.impl.BDLocationManager;
 */
 
 public class MainActivity extends ActionBarActivity
@@ -104,7 +104,7 @@ public class MainActivity extends ActionBarActivity
         if(debugText!=null)
             debugLog("debugText created");
 /*
-     mBDLocationClient = ((BDLocationApplication)getApplication()).mBDLocationClient;
+     mBDLocationClient = ((BDLocationManager)getApplication()).mBDLocationClient;
 
         initLocation();
         mBDLocationClient.start();
