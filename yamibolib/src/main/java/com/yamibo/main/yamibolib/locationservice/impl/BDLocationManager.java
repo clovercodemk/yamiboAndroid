@@ -3,6 +3,7 @@ package com.yamibo.main.yamibolib.locationservice.impl;
 import com.baidu.location.BDLocation;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
+import com.yamibo.main.yamibolib.locationservice.LocationListener;
 import com.yamibo.main.yamibolib.locationservice.model.Location;
 
 import android.content.Context;
@@ -10,54 +11,57 @@ import android.content.Context;
 import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.debugLog;
 
 /**
- * Clover:
- * modified from default BD location service sample: use getApplication() in activity to control this, and register its name in manifest.xml
- * here: remove its Application inheritance in order to easily instantiate this class in helper class
+ * Clover on 2015-06-01
+ * helper class to control BDLocationClient.<br>
+ * modified from default BD location service sample, which is an Application classuse getApplication() in activity to control this, and register its name in manifest.xml
  */
 class BDLocationManager implements LocManager{
-    BDLocation locationResult;
-
     DefaultLocationService targetService=null;
 
     private LocationClient mLocationClient;
     private DefaultLocationListener mDefaultListener;
 
     private LocationClientOption.LocationMode locationMode = LocationClientOption.LocationMode.Hight_Accuracy;
-    private String coordMode ="bd09ll";
     private int span=-1;//default requestLocation not auto update
-    private boolean isNeedAddress=true;
 
     /**
-     * toggle debug function output on/off
+     * 返回街道名称
      */
-    private final boolean IS_DEBUG_ENABLED=true;
+    private static final boolean IS_NEED_ADDRESS =true;
+    /**
+     * 统一设定为三种模式 "gcj02","bd09ll","bd09"
+     * 这里设定为百度经纬度
+     */
+    private static final String COORD_MODE ="bd09ll";
+
+    /**
+     * toggle debug function output on
+     */
+    private static final boolean IS_DEBUG_ENABLED=true;
 
 
 
     /**
      *
-     * @param input LocationClientOption.LocationMode.Hight_Accuracy 高精度模式
-     *              , Battery_Saving 低功耗模式
-     *              , Device_Sensors 仅设备(Gps)模式
+     * @param providerChoice 使用GPS/Network定位
      */
-    void setLocationMode(LocationClientOption.LocationMode input){
-        locationMode=input;
+    public void setProvider(int providerChoice){
+        switch(providerChoice){
+            case DefaultLocationService.PROVIDER_BEST:
+                locationMode=LocationClientOption.LocationMode.Hight_Accuracy;
+                break;
+            case DefaultLocationService.PROVIDER_NETWORK:
+                locationMode=LocationClientOption.LocationMode.Battery_Saving;
+                break;
+            case DefaultLocationService.PROVIDER_GPS:
+                locationMode=LocationClientOption.LocationMode.Device_Sensors;
+                break;
+            default:
+                debugLog("Unknown provider mode!");
+                return;
+        }
     }
 
-    /**
-     *
-     * @param input choose "gcj02","bd09ll","bd09"
-     * @return
-     */
-    boolean setCoordMode(String input){
-        String[] choices={"gcj02","bd09ll","bd09"};
-        for(String choice:choices)
-            if(choice.equals(input)) {
-                coordMode =input;
-                return true;
-            }
-        return false;
-    }
 
     /**
      *
@@ -65,28 +69,16 @@ class BDLocationManager implements LocManager{
      * 设置发起定位请求的间隔时间为>=1000 (ms) 时为循环更新
      * default value -1 means no automatic update.
      */
-    void setSpan(int input){
+    public void setUpdateInterval(int input){
         span =input;
     }
 
-    void setIsNeedAddress(boolean input){
-        isNeedAddress=input;
-    }
-
-
     /**
-     * instantiate client and listener
+     * instantiate client
      * @param context
      */
     public BDLocationManager(Context context) {
-
         mLocationClient = new LocationClient(context);
-        mDefaultListener = new DefaultLocationListener();
-
-        if(mLocationClient==null|| mDefaultListener ==null)
-            debugLog("error instantiate client or listener!");
-        else
-            debugLog("instantiate LocationClient and DefaultLocationListener done");
     }
 
 
@@ -95,7 +87,7 @@ class BDLocationManager implements LocManager{
      * @param location
      * @return its String format for Output
      */
-    public static String toStringOutput(BDLocation location){
+    public static String bdLocationToString(BDLocation location){
         StringBuffer sb = new StringBuffer(256);
         sb.append("time : ");
         sb.append(location.getTime());
@@ -126,15 +118,16 @@ class BDLocationManager implements LocManager{
         return sb.toString();
     }
 
-    /**Baidu sample, set option for the client
-     *
+    /**Baidu sample, set option for the client?
+     * TODO
+     *should set for each listener???!
      */
-    public void initLocation() {
+    public void applyOption() {
         LocationClientOption option = new LocationClientOption();
         option.setLocationMode(locationMode);//设置定位模式
-        option.setCoorType(coordMode);//返回的定位结果是百度经纬度
+        option.setCoorType(COORD_MODE);//返回的定位结果是百度经纬度
         option.setScanSpan(span);
-        option.setIsNeedAddress(isNeedAddress);
+        option.setIsNeedAddress(IS_NEED_ADDRESS);
 
         mLocationClient.setLocOption(option);
         debugLog("initiate Location done");
@@ -159,6 +152,7 @@ class BDLocationManager implements LocManager{
      *
      */
     public boolean requestLocation(){
+        debugLog("Request BDLocation update");
 
         int code=mLocationClient.requestLocation();
         switch (code)
@@ -178,17 +172,16 @@ class BDLocationManager implements LocManager{
     /**
      * BD add listener
      */
-    void addListener(){
-        mLocationClient.registerLocationListener(mDefaultListener);
-        debugLog("mListtner added" + mDefaultListener.toString());
+    public void addListener(LocationListener listener){
+        //TODO check type is DefaultLocationListener, if not, need a translation
+        mLocationClient.registerLocationListener((DefaultLocationListener)listener);
+        debugLog("BDListener added" + listener.toString());
     }
 
-    /**
-     * BD remove listener
-     */
-    void removeListener() {
-       mLocationClient.unRegisterLocationListener(mDefaultListener);
-        debugLog("mListener removed: " + mDefaultListener.toString());
+    public void removeListener(LocationListener listener) {
+        //TODO check type is DefaultLocationListener, if not, need a translation
+        mLocationClient.unRegisterLocationListener((DefaultLocationListener)listener);
+        debugLog("BDListener removed: " + listener.toString());
     }
 
 

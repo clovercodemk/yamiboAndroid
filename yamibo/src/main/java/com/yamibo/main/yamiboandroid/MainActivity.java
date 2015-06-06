@@ -20,6 +20,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationListener;
 import com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService;
 /*
 import com.baidu.location.BDLocation;
@@ -62,7 +63,7 @@ public class MainActivity extends ActionBarActivity
     private boolean isNeedAddress=true;
     private Context mContext;
     //Baidu sample, set opton for the client
-    private void initLocation() {
+    private void applyOption() {
         LocationClientOption option = new LocationClientOption();
         option.setLocationMode(tempMode);//设置定位模式
         option.setCoorType(tempcoor);//返回的定位结果是百度经纬度，默认值gcj02
@@ -70,7 +71,7 @@ public class MainActivity extends ActionBarActivity
         if(frequence>=1000)//Baidu: 前后两次请求定位时间间隔不能小于1000ms。
             span=frequence;
         else
-            com.yamibo.main.yamibolib.Utils.Log.i("DEBUG initLocation", "Invalid frequence. use default value");
+            com.yamibo.main.yamibolib.Utils.Log.i("DEBUG applyOption", "Invalid frequence. use default value");
         option.setScanSpan(span);
         option.setIsNeedAddress(isNeedAddress);
         mBDLocationClient.setLocOption(option);
@@ -96,6 +97,7 @@ public class MainActivity extends ActionBarActivity
          */
         locationService=new DefaultLocationService(getApplicationContext());
         locationService.start();
+
         debugButton=(Button)findViewById(R.id.debug_button);
         if(debugButton!=null)
             debugLog("debugButton created");
@@ -106,7 +108,7 @@ public class MainActivity extends ActionBarActivity
 /*
      mBDLocationClient = ((BDLocationManager)getApplication()).mBDLocationClient;
 
-        initLocation();
+        applyOption();
         mBDLocationClient.start();
         mBDLocationClient.requestLocation();
         Log.i("DEBUG", " mBDLocationClient " + mBDLocationClient.toString());

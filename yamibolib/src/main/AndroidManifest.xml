@@ -24,7 +24,7 @@
     <uses-permission android:name="android.permission.READ_LOGS"></uses-permission>
 
     <!-- point out the name of the location service Application here to avoid Class application cast error
-     android:name=".locationservice.impl.BDLocationApplication"-->
+     android:name=".locationservice.impl.BDLocationManager"-->
     <application
         android:name="com.yamibo.main.yamibolib.app.YMBApplication"
         android:allowBackup="true"
