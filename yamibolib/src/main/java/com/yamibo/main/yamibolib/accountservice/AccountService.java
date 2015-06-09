@@ -11,7 +11,7 @@ import java.util.List;
  * 1. 需要关心Account的页面，要先profile()判断是否有登录 没有登录的情况下，call login(LoginResultListener
  * listener)
  * <p/>
- * 2. 需要关心Account的页面, 要call addListener(AccountListener listener)
+ * 2. 需要关心Account的页面, 要call registerListener(AccountListener listener)
  * <p/>
  * 3. 登录成功后，会先call LoginResultListener.onLoginSuccess, 然后再call
  * AccountListener.onAccountChanged。 对于同时关心LoginResultListener

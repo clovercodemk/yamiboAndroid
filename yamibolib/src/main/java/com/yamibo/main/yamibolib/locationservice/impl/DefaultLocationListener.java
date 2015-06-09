@@ -7,10 +7,11 @@ import com.baidu.location.BDLocationListener;
 import com.yamibo.main.yamibolib.locationservice.LocationService;
 import com.yamibo.main.yamibolib.locationservice.model.Location;
 
-import static com.yamibo.main.yamibolib.locationservice.impl.BDLocationManager.bdLocationToString;
+import static com.yamibo.main.yamibolib.locationservice.impl.BDLocationService.bdLocationToString;
 import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.debugLog;
 
 /**
+ * 不用此类！！
  *
  * 将此类实例化，作为监听器提供给DefaultLocationService对象。<br>
  *     <p/>
@@ -19,17 +20,14 @@ import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationServ
  * <p/>
  * 用户可以继承这个类以后自定义onLocationChanged(LocationService sender)方法
  */
-public class DefaultLocationListener implements BDLocationListener, android.location.LocationListener, com.yamibo.main.yamibolib.locationservice.LocationListener{
+
+class DefaultLocationListener implements BDLocationListener, android.location.LocationListener, com.yamibo.main.yamibolib.locationservice.LocationListener{
     DefaultLocationService targetService =null;
     /**
      * 仅ANDROID API 使用。用于进行单次更新操作。
      */
     public boolean isAutoRequestUpdate =false;
 
-    /**
-     * sender的位置更新后会调用此方法。用户可以自定义。
-     * @param sender
-     */
     @Override
     public void onLocationChanged(LocationService sender) {
 
@@ -37,19 +35,15 @@ public class DefaultLocationListener implements BDLocationListener, android.loca
 
 
     @Override
-    /**
-     * update locationResult,
-     * call targetService.onReceiveBDLocation(location)
-     */
     public void onReceiveLocation(BDLocation bdLocation) {
 
 
         debugLog("BDlocation received" + bdLocationToString(bdLocation));
 
-        Location locationResult=BDLocationManager.toLocation(bdLocation);
+        Location LocationResult = BDLocationService.toLocation(bdLocation);
         //invoke service to retrieve this location
         if(targetService !=null)
-            targetService.onReceiveLocation(locationResult);
+            targetService.onReceiveLocation(LocationResult);
         else
             debugLog("targetService not assigned!!");
     }
@@ -63,13 +57,15 @@ public class DefaultLocationListener implements BDLocationListener, android.loca
             targetService.removeListener(this);
         debugLog("Android on location changed received:\n" + location.toString());
 
-        Location locationResult=AndroidLocationManager.toLocation(location);
+
+        Location LocationResult = AndroidLocationService.toLocation(location);
         //invoke service to retrieve this location
         if(targetService !=null)
-            targetService.onReceiveLocation(locationResult);
+            targetService.onReceiveLocation(LocationResult);
         else
             debugLog("targetService not assigned!!");
     }
+
 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
@@ -85,6 +81,8 @@ public class DefaultLocationListener implements BDLocationListener, android.loca
     public void onProviderDisabled(String provider) {
 
     }
+
+
 
 
 }

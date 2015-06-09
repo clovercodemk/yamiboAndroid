@@ -9,7 +9,7 @@
     <TextView android:id="@+id/section_label" android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
-    <!--DEBUG_CODE for location service data-->
+    <!--DEBUG_CODE for Location service data-->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

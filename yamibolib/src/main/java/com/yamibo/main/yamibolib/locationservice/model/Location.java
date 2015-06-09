@@ -9,6 +9,9 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
+/**
+ * created by 牛奶
+ */
 public class Location implements Parcelable {
     public static final DecimalFormat FMT = new DecimalFormat("#.00000", new DecimalFormatSymbols(
             Locale.ENGLISH));
@@ -31,15 +34,34 @@ public class Location implements Parcelable {
     private String address;
     private City city;
     private int accuracy;
+    private int isInCN;
+    public static final int NOT_IN_CN=0;
+    public static final int IN_CN=1;
 
+
+/*
     public Location(double latitude, double longitude, double offsetLatitude,
-                    double offsetLongitude, String address, City city) {
+                       double offsetLongitude, String address, City city) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.offsetLatitude = offsetLatitude;
         this.offsetLongitude = offsetLongitude;
         this.address = address;
         this.city = city;
+    }
+    */
+    //add accurary
+
+    public Location(double latitude, double longitude, double offsetLatitude,
+                    double offsetLongitude, String address, City city, int accuracy, int isInCN) {
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.offsetLatitude = offsetLatitude;
+        this.offsetLongitude = offsetLongitude;
+        this.address = address;
+        this.city = city;
+        this.accuracy=accuracy;
+        this.isInCN =isInCN;
     }
 
     private Location() {
@@ -53,11 +75,13 @@ public class Location implements Parcelable {
         address = in.readString();
         city = in.readParcelable(CITY_CL);
         accuracy = in.readInt();
+        isInCN=in.readInt();
     }
 
     public double latitude() {
         return latitude;
     }
+
 
     public double longitude() {
         return longitude;
@@ -85,6 +109,10 @@ public class Location implements Parcelable {
 
     public int accuracy() {
         return accuracy;
+    }
+
+    public int getIsInCN(){
+        return isInCN;
     }
 
     //
@@ -120,6 +148,7 @@ public class Location implements Parcelable {
         out.writeString(address);
         out.writeParcelable(city, flags);
         out.writeInt(accuracy);
+        out.writeInt(isInCN);
     }
 
     @Override

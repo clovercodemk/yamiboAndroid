@@ -14,8 +14,8 @@ public interface ConfigService {
     /**
      * 用以订阅任意键值的变化通知
      * <p/>
-     * ConfigService.addListener(ANY, listener)<br>
-     * ConfigService.removeListener(ANY, listener)
+     * ConfigService.registerListener(ANY, listener)<br>
+     * ConfigService.unregisterListener(ANY, listener)
      */
     public static final String ANY = "*";
 

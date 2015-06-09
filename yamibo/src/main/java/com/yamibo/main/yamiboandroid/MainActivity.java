@@ -20,14 +20,14 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationListener;
+
 import com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService;
 /*
 import com.baidu.location.BDLocation;
 import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
-import com.yamibo.main.yamibolib.locationservice.impl.BDLocationManager;
+import com.yamibo.main.yamibolib.locationservice.impl.BDLocationService;
 */
 
 public class MainActivity extends ActionBarActivity
@@ -106,7 +106,7 @@ public class MainActivity extends ActionBarActivity
         if(debugText!=null)
             debugLog("debugText created");
 /*
-     mBDLocationClient = ((BDLocationManager)getApplication()).mBDLocationClient;
+     mBDLocationClient = ((BDLocationService)getApplication()).mBDLocationClient;
 
         applyOption();
         mBDLocationClient.start();
