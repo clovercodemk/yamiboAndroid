@@ -1,21 +1,27 @@
 package com.yamibo.main.yamibolib.locationservice.impl;
 
 import android.content.Context;
+import android.location.Address;
 import android.location.Criteria;
+import android.location.Geocoder;
 import android.location.LocationManager;
 
+import com.yamibo.main.yamibolib.Utils.Log;
 import com.yamibo.main.yamibolib.locationservice.LocationListener;
 import com.yamibo.main.yamibolib.locationservice.LocationService;
 import com.yamibo.main.yamibolib.locationservice.model.City;
 import com.yamibo.main.yamibolib.locationservice.model.Location;
 
+import org.json.JSONObject;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.debugLog;
-import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.isLocationEnabled;
+import static com.yamibo.main.yamibolib.locationservice.impl.util.debugLog;
+
 
 /**
  * Created by Clover on 2015-06-03.
@@ -26,8 +32,9 @@ class AndroidLocationService implements APILocationService {
     DefaultLocationService supervisorService=null;
 
     private Context mContext;
+
     /**
-     * FUTURE 可储存上次程序定位的结果
+     * NO USE
      */
     private Location lastKnownLocation = null;
 
@@ -38,25 +45,11 @@ class AndroidLocationService implements APILocationService {
 
 
 
-    public static final int BAIDU_MODE=0;
-    public static final int ANDROID_API_MODE=1;
     public static final int PROVIDER_BEST=0;
     public static final int PROVIDER_NETWORK=1;
     public static final int PROVIDER_GPS=2;
 
 
-    /**
-     * to be read by the textView for shown to mobile activity
-     */
-    public String debugMessage = null;
-
-    //private APILocationService locManager = null;
-
-
-    /**
-     * DEBUG_CODE, change the boolean flag to enable/disable Log.i message started with "DEBUG_"
-     */
-    private static final boolean IS_DEBUG_ENABLED = true;
 
     /**
      * 为每个LocationListener提供一个相应的API location listener
@@ -68,9 +61,8 @@ class AndroidLocationService implements APILocationService {
     private boolean isLocationDemand=false;
     private boolean isLocationReceived=false;
 
-
-
     private LocationManager locationManager;
+    private Geocoder gCoder;
 
    private static String provider_best =null;
     private static String provider_network =null;
@@ -94,6 +86,7 @@ class AndroidLocationService implements APILocationService {
         provider_gps =locationManager.GPS_PROVIDER;
         setUpdateInterval(updateInterval);
         setProvider(providerChoice);
+        gCoder = new Geocoder(mContext);
     }
 
 
@@ -131,7 +124,7 @@ class AndroidLocationService implements APILocationService {
     boolean requestLocation(AndroidListener androidListener){
         unregisterListener(androidListener);
         registerListener(androidListener);
-        return true;//TODO
+        return true;//no more info avaialbe from registerListener
     }
 
 
@@ -143,12 +136,10 @@ class AndroidLocationService implements APILocationService {
         if (locationManager == null)
             return;
 
-        //reset flags
-        resetFlag();
         for (LocationListener listener: mapListeners.keySet())
             removeListener(listener);
         isStarted=false;
-        isLocationDemand=false;
+        resetProgressFlag();
         debugLog("location service stops");
     }
 
@@ -159,7 +150,10 @@ class AndroidLocationService implements APILocationService {
         boolean state=false;
         for(AndroidListener androidListener:mapListeners.values()) {
             state=(state || requestLocation(androidListener));
+            if(state)
+                break;
         }
+        isLocationReceived=false;
         return state;
     }
 
@@ -187,6 +181,11 @@ class AndroidLocationService implements APILocationService {
         refresh();
     }
 
+    @Override
+    public boolean isClientStarted() {
+        return false;
+    }
+
 
     /**
      * request location when register listener (set flag)
@@ -205,7 +204,7 @@ class AndroidLocationService implements APILocationService {
         }
         locationManager.requestLocationUpdates
                 (provider, tempInt, MIN_DISTANCE, androidListener);
-        isLocationDemand = true;
+        isLocationDemand = true;//TODO TEST:check if the above functions normally
         debugLog("Android autoRequest sent with provider: "+provider);
     }
 
@@ -240,42 +239,79 @@ class AndroidLocationService implements APILocationService {
     }
 
 
-    public static Location toLocation(android.location.Location source) {
+    public Location toLocation(android.location.Location source) {
 
         double latitude=source.getLatitude();
         double longtitude=source.getLongitude();
         double offsetLatitude=latitude;
         double offsetLongtitude=longtitude;
-        //TODO put address, city
         String address=null;
         City city=null;
+        try {
+            List<Address> addresses=gCoder.getFromLocation(latitude,longtitude,1);
+            if(addresses!=null&&addresses.size()>0){
+                Address returnedAddress=addresses.get(0);
+                String strCity = returnedAddress.getLocality();
+//                String state = returnedAddress.getAdminArea();
+//                String country =returnedAddress.getCountryName();
+//                String postalCode =returnedAddress.getPostalCode();
+//                String knownName = returnedAddress.getFeatureName(); // Only if available else return NULL
+
+                StringBuilder strReturnedAddress=new StringBuilder("");
+                for (int i = 0; i < returnedAddress.getMaxAddressLineIndex(); i++) {
+                    strReturnedAddress.append(returnedAddress.getAddressLine(i)).append("\n");
+                }
+                address= strReturnedAddress.toString();
+                Log.w("My Current loction address", "" + address);
+                city=new City(strCity);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         int accuracy=(int)source.getAccuracy();
         int isInCN;
-        if(isInChina(source))
-            isInCN= Location.IN_CN;
+        long mTime = source.getTime();
+        if(isInChina(source)) {
+            isInCN = Location.IN_CN;
+            //always convert the coord from Android API when in CN
+            try {
+                JSONObject bdCoord = util.convertToBDCoord(latitude, longtitude);
+                offsetLatitude = (double) bdCoord.get("offsetLatitude");
+                offsetLatitude = (double) bdCoord.get("offsetLongitude");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         else
             isInCN= Location.NOT_IN_CN;
 
-
-        //TODO  转换芯片GPS为百度GPS
-        // if(applyOffset)
-
         Location Location =new Location
-                        (latitude,longtitude,offsetLatitude,offsetLongtitude,address,city,accuracy,isInCN);
+                        (latitude,longtitude,offsetLatitude,offsetLongtitude,address,city,accuracy,isInCN,mTime);
         return Location;
     }
 
-    //TODO check by longtitude,latitude
-    public static boolean isInChina(android.location.Location location) {
-        return false;
+    public boolean isInChina(android.location.Location location) {
+        try {
+            List<Address> addresses=gCoder.getFromLocation(location.getLatitude(),location.getLongitude(),1);
+            if(addresses!=null&addresses.size()>0){
+                String country=addresses.get(0).getCountryName();
+                debugLog("country is "+country);
+                return country.equals("China");
+            }
+        } catch (IOException e) {
+            debugLog("EROOR: "+e);
+        }
+        return true;
     }
 
-    private void resetFlag() {
+    private void resetProgressFlag() {
         isLocationDemand=false;
         isLocationReceived=false;
     }
 
     void onReceiveLocation() {
+        isLocationReceived=true;
         for (AndroidListener androidListener : mapListeners.values())
             if (!androidListener.isAutoRequestUpdate)
                 unregisterListener(androidListener);

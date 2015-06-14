@@ -15,6 +15,8 @@ import com.yamibo.main.yamibolib.model.GPSCoordinate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.yamibo.main.yamibolib.locationservice.impl.util.debugLog;
+
 /**
  * 这个类与上层用户交谈，检查环境变量(system settings)，读取更新间隔等参数，管理切换定位服务，定义常量和计算函数。
  * Created by wangxiaoyan on 15/5/25.<br>
@@ -31,14 +33,22 @@ import java.util.List;
  * <p/>
  * 可以将任何拥有LocationLisener接口的实例listener添加到队列:<br>
  * addListener(listener), removeListener(listener);
- * 帮助类BDLocationService和AndroidLocationService会建立一个相应的API定位监听器。
+ * 已封装：帮助类BDLocationService和AndroidLocationService会建立一个相应的API定位监听器。
  * <p/>
  * 以下方法更改已注册的所有监听器的参数，并将作为下一次的监听器参数: <br>
  * resetServiceOption(update_interval,provider);<br>
  * 注解：百度定位模式下只能设置统一的监听参数。因此对AndroidAPI也作此简化处理。
+ *TODO user:若想使用GPS和网络混合provider并选择最优结果，推荐建立两个DefaultLocationService实例，分别监听网络和GPS并比较结果的精度：<br>
+ *单监听器模式下，AndroidAPI默认的Best模式会变成监听GPS，导致长时间无为之结果。<br>
+ *百度的单监听器在混合模式下，会将GPS和网络的结果混在一起返回，缺少文档说明。<br>
  *
  */
 public class DefaultLocationService implements LocationService {
+
+    /**
+     * DEBUG_CODE, change the boolean flag to enable/disable Log.i message started with "DEBUG_"
+     */
+    static final boolean IS_DEBUG_ENABLED=true;
 
     private Context mContext;
 
@@ -54,14 +64,14 @@ public class DefaultLocationService implements LocationService {
 
     /**
      * 任意定位服务取得的上次程序定位的结果
-     * TODO 可读取存储的信息
+     * TODO user:  add methods storing and reading lastKnownLocation
      */
     private Location lastKnownLocation = null;
     /**
      * 默认的serviceMode为百度定位（适用中国）或AndroidAPI定位（适用中国之外）
      */
-   // private int serviceMode=BAIDU_MODE;
-    private int serviceMode=ANDROID_API_MODE;
+    private int serviceMode=BAIDU_MODE;
+   // private int serviceMode=ANDROID_API_MODE;
     /**
      * 是否允许程序根据定位结果自动选择定位服务
      */
@@ -73,7 +83,7 @@ public class DefaultLocationService implements LocationService {
     /**
      * 当更新时间小于1000ms时，为单次更新
      */
-    private int updateInterval =-1;
+    private int updateInterval =5000;
 
     /**
      * 默认选择GPS and/or Network进行定位
@@ -115,10 +125,7 @@ public class DefaultLocationService implements LocationService {
      * to be read by the textView for shown to mobile activity
      */
     public String debugMessage = null;
-    /**
-     * DEBUG_CODE, change the boolean flag to enable/disable Log.i message started with "DEBUG_"
-     */
-    private static final boolean IS_DEBUG_ENABLED = true;
+
 
 
 
@@ -134,7 +141,15 @@ public class DefaultLocationService implements LocationService {
      */
     public DefaultLocationService(Context context) {
         mContext = context;
-        //TODO 根据 lastKnownLocation决定是否自动选择serviceMode
+        //TODO user: read stored lastKnownLocation
+
+        if(lastKnownLocation!=null&&isAutoSwitchService){
+            if(lastKnownLocation.getRegion()==Location.IN_CN)
+                serviceMode=BAIDU_MODE;
+            else
+                serviceMode=ANDROID_API_MODE;
+        }
+
         switch (serviceMode) {
             case BAIDU_MODE:
                 apiLocationService = new BDLocationService(mContext,updateInterval,providerChoice,this);
@@ -152,6 +167,8 @@ public class DefaultLocationService implements LocationService {
     public DefaultLocationService
             (Context context, int serviceMode,boolean isAutoSwitchService, int update_interval,int providerChoice) {
         mContext = context;
+        //TODO user: read stored lastKnownLocation
+
         this.isAutoSwitchService = isAutoSwitchService;
         this.updateInterval=update_interval;
         this.serviceMode=serviceMode;
@@ -183,9 +200,7 @@ public class DefaultLocationService implements LocationService {
      *     <p/>
      *     STATUS_FAIL  表示当前状态为定位失败<br>
      *         <p/>
-     *         STATUS_TRYING 表示当前定位服务正在尝试获取最新的位置：<br>
-     *             当使用百度服务时，代表（初次或者再次刷新时）定位请求已经发送但尚未收到回应。<br>
-     *             当使用Android API时，代表初次定位请求已经发送，但尚未收到回应。
+     *         STATUS_TRYING 表示当前定位服务在start()或refresh()正在尝试获取最新的位置<br>
      */
     @Override
     public int status() {
@@ -207,46 +222,55 @@ public class DefaultLocationService implements LocationService {
             return false;
     }
 
-    //TODO
+    /**
+     * 最近一次的位置结果（包括实例读取的存储结果，可能过时）<br>
+     * 要确定结果是最新的，请确定status()为真（若需更新结果，可调用refresh()）。
+     * @return
+     */
     @Override
     public Location location() {
-        return null;
+        return lastKnownLocation;
     }
 
 
     /**
-     * TODO
-     * @return
+     *
+     * @return GPS模式：芯片坐标<br>
+     *     网络查询：Android坐标，或百度纠偏坐标（国外很可能出错！，请自动或手动切换至AndroidAPI模式）
+     *     <p>
+     *         provider信息未写入，因为lastKnownLocation未存储此信息。
+     *     </p>
      */
     @Override
     public GPSCoordinate realCoordinate() {
-        return null;
+        return new GPSCoordinate(lastKnownLocation.latitude(),lastKnownLocation.longitude(),
+                lastKnownLocation.accuracy(),lastKnownLocation.getTime(),"");
     }
 
+
     /**
-     * TODO
+     *
+     * @return 国内GPS模式：芯片坐标经过百度纠偏计算<br>
+     *     国内网络查询：百度纠偏或Android坐标经过百度纠偏计算<br>
+     *         国外：realCoordinate
+     *     <p>
+     *         provider信息未写入，因为lastKnownLocation未存储此信息。
+     *     </p>
      */
     @Override
     public GPSCoordinate offsetCoordinate() {
-        return null;
+        return new GPSCoordinate(lastKnownLocation.offsetLatitude(),lastKnownLocation.offsetLongitude(),
+                lastKnownLocation.accuracy(),lastKnownLocation.getTime(),"");
     }
 
-    /**
-     * TODO
-     * @return
-     */
     @Override
     public String address() {
-        return null;
+        return lastKnownLocation.address();
     }
 
-    /**
-     * TODO
-     * @return
-     */
     @Override
     public City city() {
-        return null;
+        return lastKnownLocation.city();
     }
 
     @Override
@@ -299,14 +323,15 @@ public class DefaultLocationService implements LocationService {
     public boolean refresh() {
         if(!isLocationEnabled(mContext))
             return false;
-        resetFlag();
+        resetReceivedFlag();
+        debugLog("goto apiLocationService.refresh()");
         return apiLocationService.refresh();
     }
 
     /**
      * 重置发送/接到 位置信息的flags
      */
-    private void resetFlag() {
+    private void resetReceivedFlag() {
         isLocationReceived=false;
     }
 
@@ -326,13 +351,9 @@ public class DefaultLocationService implements LocationService {
     }
 
     /**
-     * @param listener 监听器使用DefaultListener class.<br>
-     *
-     * 注册监听器的同时与targetService绑定<br>
-     *                 每个监听器至多只可以添加一次
+     * @param listener 任何有Location listener interface的监听器<br>
      *     <p/>
-     * 注：监听器将使用DefaultLocationService的参数。<br>
-     *                 TODO test if Baidu client support hot add listener!
+    *同一个监听器不会被重复添加
      */
     @Override
     public void addListener(LocationListener listener) {
@@ -355,10 +376,22 @@ public class DefaultLocationService implements LocationService {
         activeListeners.remove(listener);
     }
 
-
+    //TODO QUESTION: 这个方法用来做什么的？默认坐标是怎么回事？另外用户传来的GPS里并未指定address和City（使用默认的上海）<br>
+    // 目前仅当用户明确指定坐标时，将其当成offsetCoordinate并更新lastKnownResult
     @Override
-    //TODO
     public void selectCoordinate(int type, GPSCoordinate coord) {
+        switch (type){
+            case 0:
+            case 1:
+            case -1:
+                debugLog("selectedLocation not stored");
+                return;
+            case 0xFF01:
+                lastKnownLocation=new Location(coord.latitude(),coord.longitude(),
+                coord.latitude(),coord.longitude(),"selected address",City.DEFAULT);
+        }
+
+
         return;
     }
 
@@ -403,10 +436,6 @@ public class DefaultLocationService implements LocationService {
             debugMessage = Message;
     }
 
-    static void debugLog(String Message) {
-        if (IS_DEBUG_ENABLED)
-            Log.i("DefaultLocationSerivce", "DEBUG_" + Message);
-    }
 
     /**
      * 当任何一个监听器收到位置信息时，运行监听器队列中的每一个监听器。<p/>
@@ -415,13 +444,10 @@ public class DefaultLocationService implements LocationService {
      *
      */
     void onReceiveLocation(Location LocationResult) {
-//TODO delegate to each apiLocationService realization? need to require autoSwitchMode
-        /*if (apiLocationService == null)
-            return;
-        */
-        isLocationReceived=true;
-
+        debugLog("client started? " + apiLocationService.isClientStarted());
         this.lastKnownLocation = LocationResult;
+        debugLog("hasLocation"+hasLocation());
+        isLocationReceived=true;
         debugLog("LocationService updated location from one listener");
 
         for (LocationListener listener : activeListeners) {
@@ -430,11 +456,13 @@ public class DefaultLocationService implements LocationService {
         debugLog("all activeListeners perform their own actions");
 
         if(isAutoSwitchService) {
-            if (lastKnownLocation.getIsInCN() == Location.IN_CN && serviceMode != BAIDU_MODE)
+            debugLog("switch service!");
+            if (lastKnownLocation.getRegion() == Location.IN_CN && serviceMode != BAIDU_MODE)
                 switchServiceMode(BAIDU_MODE);
-            if (lastKnownLocation.getIsInCN() == Location.NOT_IN_CN && serviceMode==BAIDU_MODE)
+            if (lastKnownLocation.getRegion() == Location.NOT_IN_CN && serviceMode==BAIDU_MODE)
                 switchServiceMode(ANDROID_API_MODE);
         }
+       debugLog("client started? " + apiLocationService.isClientStarted());
     }
 
     /**
@@ -454,7 +482,7 @@ public class DefaultLocationService implements LocationService {
 
     private void restart() {
         stop();
-        resetFlag();
+        resetReceivedFlag();
         start();
     }
 }

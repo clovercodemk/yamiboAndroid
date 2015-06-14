@@ -8,7 +8,8 @@ import com.yamibo.main.yamibolib.locationservice.LocationService;
 import com.yamibo.main.yamibolib.locationservice.model.Location;
 
 import static com.yamibo.main.yamibolib.locationservice.impl.BDLocationService.bdLocationToString;
-import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.debugLog;
+import static com.yamibo.main.yamibolib.locationservice.impl.util.debugLog;
+
 
 /**
  * 不用此类！！
@@ -57,13 +58,15 @@ class DefaultLocationListener implements BDLocationListener, android.location.Lo
             targetService.removeListener(this);
         debugLog("Android on location changed received:\n" + location.toString());
 
-
+/* static method can't be used here
         Location LocationResult = AndroidLocationService.toLocation(location);
         //invoke service to retrieve this location
         if(targetService !=null)
             targetService.onReceiveLocation(LocationResult);
         else
             debugLog("targetService not assigned!!");
+            */
+
     }
 
 

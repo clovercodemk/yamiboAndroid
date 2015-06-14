@@ -5,7 +5,8 @@ import android.os.Bundle;
 
 import com.yamibo.main.yamibolib.locationservice.LocationListener;
 
-import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.debugLog;
+import static com.yamibo.main.yamibolib.locationservice.impl.util.debugLog;
+
 
 /**
  * Created by Clover on 2015-06-09.
@@ -36,7 +37,7 @@ class AndroidListener implements android.location.LocationListener {
             androidService.unregisterListener(this);
         debugLog("Android on location changed received:\n" + location.toString());
 
-        com.yamibo.main.yamibolib.locationservice.model.Location LocationResult = AndroidLocationService.toLocation(location);
+        com.yamibo.main.yamibolib.locationservice.model.Location LocationResult = androidService.toLocation(location);
         //invoke service to retrieve this location
 
         androidService.onReceiveLocation();

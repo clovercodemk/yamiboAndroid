@@ -6,7 +6,8 @@ import com.yamibo.main.yamibolib.locationservice.LocationListener;
 import com.yamibo.main.yamibolib.locationservice.model.Location;
 
 import static com.yamibo.main.yamibolib.locationservice.impl.BDLocationService.bdLocationToString;
-import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.debugLog;
+import static com.yamibo.main.yamibolib.locationservice.impl.util.debugLog;
+
 
 /**
  * Created by Clover on 2015-06-09.
@@ -29,11 +30,13 @@ class BDListener implements BDLocationListener {
         debugLog("BDlocation received" + bdLocationToString(bdLocation));
 
         Location LocationResult = BDLocationService.toLocation(bdLocation);
+
+        bdService.onReceiveLocation();
         //invoke service to retrieve this location
-        if(supervisorService !=null)
+       /* if(supervisorService !=null)
             supervisorService.onReceiveLocation(LocationResult);
         else
             debugLog("targetService not assigned!!");
-
+*/
     }
 }

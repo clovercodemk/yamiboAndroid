@@ -1,22 +1,27 @@
 package com.yamibo.main.yamibolib.locationservice.impl;
 
+
 import com.baidu.location.BDLocation;
-import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.yamibo.main.yamibolib.locationservice.LocationListener;
 import com.yamibo.main.yamibolib.locationservice.LocationService;
+import com.yamibo.main.yamibolib.locationservice.model.City;
 import com.yamibo.main.yamibolib.locationservice.model.Location;
 
 import android.content.Context;
 
-import java.util.ArrayList;
+import org.json.JSONObject;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
-import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.debugLog;
-import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService.isLocationEnabled;
+import static com.yamibo.main.yamibolib.locationservice.impl.util.debugLog;
+
 
 /**
  * Clover on 2015-06-01
@@ -24,7 +29,7 @@ import static com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationServ
  * modified from default BD location service sample, which is an Application classuse getApplication() in activity to control this, and register its name in manifest.xml
  * 将LocationListener 翻译为apiListener
  */
-class BDLocationService implements APILocationService {
+public class BDLocationService implements APILocationService {
     DefaultLocationService supervisorService=null;
 
     /**
@@ -32,51 +37,19 @@ class BDLocationService implements APILocationService {
      */
     Map<LocationListener, BDListener> mapListeners=new HashMap<LocationListener, BDListener>();
 
+    BDListener myListener;
 
     private Context mContext;
-    /**
-     * FUTURE 可储存上次程序定位的结果
-     */
-    private Location lastKnownLocation = null;
-    /**
-     * 默认的serviceMode为百度定位
-     */
-    private int serviceMode=BAIDU_MODE;
-    //private int serviceMode=ANDROID_API_MODE;
-    /**
-     * 是否允许程序根据定位结果自动选择定位服务
-     */
-    private boolean isAutoSwitchService =true;
-    private int DEFAULT_UPDATE_INTERVAL=10*60*1000;//default requestLocation time 10min
-    /**
-     * 当更新时间小于1000ms时，为单次更新
-     */
-    private int updateInterval =-1;
-    private int providerChoice=PROVIDER_BEST;
+
+    private int providerChoice=PROVIDER_NETWORK;
     private boolean isStarted=false;
 
-
-
-
-    public static final int BAIDU_MODE=0;
-    public static final int ANDROID_API_MODE=1;
     public static final int PROVIDER_BEST=0;
     public static final int PROVIDER_NETWORK=1;
     public static final int PROVIDER_GPS=2;
 
 
-    /**
-     * to be read by the textView for shown to mobile activity
-     */
-    public String debugMessage = null;
 
-    //private APILocationService locManager = null;
-
-
-    /**
-     *
-     */
-//    private List<LocationListener> listeners = new ArrayList<>();
 
 
     //Use the following two flags to track the working status of location application
@@ -87,7 +60,7 @@ class BDLocationService implements APILocationService {
     private LocationClient bdLocationClient;
 
     private LocationClientOption.LocationMode locationMode = LocationClientOption.LocationMode.Hight_Accuracy;
-    private int span=-1;//default requestLocation not auto update
+    private int updateInterval=5000;//default requestLocation not auto update
 
     /**
      * 返回街道名称
@@ -98,13 +71,6 @@ class BDLocationService implements APILocationService {
      * 这里设定为百度经纬度
      */
     private static final String COORD_MODE ="bd09ll";
-
-    /**
-     * toggle debug function output on
-     */
-    private static final boolean IS_DEBUG_ENABLED=true;
-
-
 
     /**
      *
@@ -129,13 +95,12 @@ class BDLocationService implements APILocationService {
 
 
     /**
-     *
      * @param input
      * 设置发起定位请求的间隔时间为>=1000 (ms) 时为循环更新
      * default value -1 means no automatic update.
      */
     public void setUpdateInterval(int input){
-        span =input;
+        updateInterval =input;
     }
 
     /**
@@ -146,16 +111,17 @@ class BDLocationService implements APILocationService {
         this.supervisorService= supervisorService;
         bdLocationClient = new LocationClient(context);
         setUpdateInterval(updateInterval);
+        debugLog("updateInterval:" + updateInterval);
         setProvider(providerChoice);
+        myListener=new BDListener(null,this);
     }
 
-
     /**
-     *
+     * for debugLog mainly
      * @param location
      * @return its String format for Output
      */
-    public static String bdLocationToString(BDLocation location){
+    static String bdLocationToString(BDLocation location){
         StringBuffer sb = new StringBuffer(256);
         sb.append("time : ");
         sb.append(location.getTime());
@@ -186,14 +152,16 @@ class BDLocationService implements APILocationService {
         return sb.toString();
     }
 
-    /**Baidu sample, TODO test set global option for the client?
+    /**
+     * 百度定位为所有监听器的参数统一更改
      *
      */
     void applyOption() {
         LocationClientOption option = new LocationClientOption();
         option.setLocationMode(locationMode);//设置定位模式
         option.setCoorType(COORD_MODE);//返回的定位结果是百度经纬度
-        option.setScanSpan(span);
+        option.setScanSpan(updateInterval);
+        debugLog("updateInterval:" + updateInterval);
         option.setIsNeedAddress(IS_NEED_ADDRESS);
 
         bdLocationClient.setLocOption(option);
@@ -218,31 +186,29 @@ class BDLocationService implements APILocationService {
     /**
      * BDclient start(). <br>
      * BDclient's requestLocation() not included
-     * TODO 测试多次调用
+     * 测试结果：可以添加多个监听器。百度重复添加同一个监听器无效
      */
     public boolean start(){
-        if (bdLocationClient== null) {
+        if (bdLocationClient== null||mapListeners.isEmpty()) {
             return false;
         }
         if(isStarted){
             debugLog("already in work");
             return true;
         }
-        if (isLocationEnabled(mContext)) {
-            DefaultLocationListener listener=new DefaultLocationListener();
-            addListener(listener);
-            bdLocationClient.start();;
-            isStarted=true;
-            isLocationDemand = requestLocation();
-
-
-            debugLog("location service starts");
-            return true;
-        } else {
-            debugLog("PLEASE enable system's location permission");
-            return false;
-        }
-
+        /**
+         * debug: array seems not working so well
+         */
+        /*for(BDListener listener:mapListeners.values())
+            registerListener(listener);
+        */
+        if(myListener!=null)
+            registerListener(myListener);
+        //parameter input in the register
+        bdLocationClient.start();
+        isStarted=true;
+        debugLog("location service starts");
+        return true;
     }
 
     /**
@@ -258,10 +224,14 @@ class BDLocationService implements APILocationService {
     boolean requestLocation() {
         debugLog("Request BDLocation update");
 
+       // bdLocationClient.start();
         int code= bdLocationClient.requestLocation();
+        debugLog("request code = "+code);
         switch (code)
         {
             case 0:
+                isLocationDemand=true;
+                isLocationReceived=false;
                 return true;
             case 6:
                 return false;
@@ -269,51 +239,42 @@ class BDLocationService implements APILocationService {
                 return false;
 
         }
-
-
     }
-
 
     /**
      * BD add listener
-     * TODO 之后是否需要启动client？
+     * 测试结果:添加新的监听器，无需重新start()
      */
     void registerListener(BDListener bdListener){
-        //TODO check type is DefaultLocationListener, if not, need a translation
         bdLocationClient.registerLocationListener(bdListener);
-        debugLog("BDListener added" + bdListener.toString());
+        debugLog("BDListenerBDListener added" + bdListener.toString());
         applyOption();
     }
 
     void unregisterListener(BDListener bdListener) {
-        //TODO check type is DefaultLocationListener, if not, need a translation
         bdLocationClient.unRegisterLocationListener(bdListener);
         debugLog("BDListener removed: " + bdListener.toString());
     }
 
-
-
     /**
      * BD client stop
-     * TODO test multiple invoke
+     * 测试结果：可以重复停止
      */
     public void stop() {
         if (bdLocationClient == null)
             return;
 
-        //reset flags
-        resetFlag();
         for (LocationListener listener: mapListeners.keySet())
             removeListener(listener);
         bdLocationClient.stop();
         isStarted=false;
+        resetProgressFlag();
         debugLog("location service stops");
     }
 
     @Override
     public boolean refresh() {
-        if(!isLocationEnabled(mContext))
-            return false;
+        debugLog("BD refresh()");
         if (bdLocationClient == null)
             return false;
        return requestLocation();
@@ -341,27 +302,92 @@ class BDLocationService implements APILocationService {
             setUpdateInterval(updateInterval);
             setProvider(providerChoice);
             applyOption();
+        debugLog("updateInterval:"+updateInterval);
+    }
+
+    @Override
+    public boolean isClientStarted() {
+        return bdLocationClient.isStarted();
     }
 
 
     /**
-     * TODO 将百度地址翻译为model里的Location
      * @param source
      * @return
+     * 注：百度坐标使用的偏转函数当应用在国外真实坐标（芯片坐标）的时候可能会出错，因此：<br>
+     * 若为国内+GPS的情形，应使用百度的偏转函数；<br>
+     * 其它情形保持不变。<br>
      */
     public static Location toLocation(BDLocation source){
-        return null;
+        double latitude=source.getLatitude();
+        double longtitude=source.getLongitude();
+        double offsetLatitude=latitude;
+        double offsetLongtitude=longtitude;
+        String address=source.getAddrStr();
+        City city=null;//source.getCity();
+        int accuracy=(int)source.getRadius();
+        int isInCN;
+        if(isInChina(source)) {
+            isInCN = Location.IN_CN;
+            if(source.getLocType()==BDLocation.TypeGpsLocation) {
+                try {
+                    JSONObject bdCoord = util.convertToBDCoord(latitude, longtitude);
+                    offsetLatitude = (double) bdCoord.get("offsetLatitude");
+                    offsetLatitude = (double) bdCoord.get("offsetLongitude");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        else
+            isInCN= Location.NOT_IN_CN;
+        Long mTime=toMTime(source.getTime());
+
+        Location Location =new Location
+                (latitude,longtitude,offsetLatitude,offsetLongtitude,address,city,accuracy,isInCN,mTime);
+        return Location;
+    }
+
+    /**
+     * Calculate the millisecond from BD location's time
+     * TODO test: 百度返回位置结果的时间是用的什么Locale?服务器的中国区还是手机用户的默认区
+     * @param strTime
+     * @return
+     */
+    private static long toMTime(String strTime) {
+        try{
+            DateFormat df=new SimpleDateFormat("yyyy-MM-dd hh:mm:", Locale.getDefault());
+            Date currentDate= df.parse(strTime);
+            long millisecond= currentDate.getTime();
+            return millisecond;
+        }
+        catch(Exception e){
+            e.printStackTrace();
+            return System.currentTimeMillis();
+        }
     }
     //Location location = new Location();
     //return location;
 
-    //TODO check if this is correct
+    /**
+     * 根据百度定位服务的升级可能会发生变化
+     * @param location
+     * @return
+     */
     public static boolean isInChina(BDLocation location){
-        return(location.getCountry().equals("china"));
+        if((location.getCountry())!=null)
+            return(location.getCountry().equals("中国"));
+        else
+            return false;
     }
 
-    private void resetFlag() {
+    private void resetProgressFlag() {
         isLocationDemand=false;
         isLocationReceived=false;
     }
+    void onReceiveLocation() {
+        debugLog("BDservice onReiveLocation");
+        isLocationReceived=true;
+    }
+
 }

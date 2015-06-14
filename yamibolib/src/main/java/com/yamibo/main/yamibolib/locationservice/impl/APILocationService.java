@@ -22,4 +22,5 @@ interface APILocationService {
 
     void resetServiceOption(int updateInterval, int providerChoice);
 
+    boolean isClientStarted();
 }

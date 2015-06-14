@@ -21,6 +21,13 @@ import android.widget.Button;
 import android.widget.TextView;
 
 
+import com.baidu.location.BDLocation;
+import com.baidu.location.BDLocationListener;
+import com.baidu.location.LocationClient;
+import com.baidu.location.LocationClientOption;
+import com.yamibo.main.yamibolib.locationservice.LocationListener;
+import com.yamibo.main.yamibolib.locationservice.LocationService;
+import com.yamibo.main.yamibolib.locationservice.impl.BDLocationService;
 import com.yamibo.main.yamibolib.locationservice.impl.DefaultLocationService;
 /*
 import com.baidu.location.BDLocation;
@@ -53,9 +60,15 @@ public class MainActivity extends ActionBarActivity
     protected String debugMessage="Hello World";
     private static final boolean IS_DEBUG_ENABLED=true;
     DefaultLocationService locationService;
+
     /**
      * DEBUG_CODE to remove
      */
+    BDLocationService bdLocationService;
+    LocationClient bdClient;
+    BDLocationListener myListener;
+    BDLocationListener listener1;
+    LocationClientOption option;
  /*   protected LocationClient mBDLocationClient = null;
     private LocationClientOption.LocationMode tempMode = LocationClientOption.LocationMode.Hight_Accuracy;
     private String tempcoor="gcj02";
@@ -95,8 +108,37 @@ public class MainActivity extends ActionBarActivity
         /**
          * DEBUG_CODE for testing the functionality of the location service lib
          */
-        locationService=new DefaultLocationService(getApplicationContext());
-        locationService.start();
+//        locationService=new DefaultLocationService(getApplicationContext());
+  //      locationService.start();
+/*
+        bdLocationService=new BDLocationService(getApplicationContext(),1000,BDLocationService.PROVIDER_NETWORK,null);
+        bdLocationService.addListener(new LocationListener() {
+            @Override
+            public void onLocationChanged(LocationService sender) {
+                return;
+            }
+        });
+        bdLocationService.start();
+
+*/
+        //TODO debug function
+        bdClient=new LocationClient(this.getApplicationContext());
+        listener1= new BDLocationListener() {
+            @Override
+            public void onReceiveLocation(BDLocation bdLocation) {
+                debugLog("MAIN　listener1 position recevied!");
+            }
+        };
+        bdClient.registerLocationListener(listener1);
+        option = new LocationClientOption();
+        option.setLocationMode(LocationClientOption.LocationMode.Hight_Accuracy);//设置定位模式
+        option.setCoorType("bd0911");//返回的定位结果是百度经纬度，默认值gcj02
+        option.setScanSpan(3000);
+        option.setIsNeedAddress(true);
+        bdClient.setLocOption(option);
+        debugLog("MAIN initiate Location done");
+        bdClient.start();
+
 
         debugButton=(Button)findViewById(R.id.debug_button);
         if(debugButton!=null)
@@ -246,7 +288,18 @@ public class MainActivity extends ActionBarActivity
                debugMessage = locationService.debugMessage;
                debugLog("location debugMessage assigned");
            }
+           /**
+            * debug
+            */
+           if(bdLocationService!=null){
+               bdLocationService.refresh();
+               debugLog("bdLocationService refresh");
+           }
 
+           if(bdClient!=null){
+               int code=bdClient.requestLocation();
+               debugLog("bdLocationService refresh with code "+code);
+           }
 
            if (debugText != null) {
                debugText.setText(debugMessage);

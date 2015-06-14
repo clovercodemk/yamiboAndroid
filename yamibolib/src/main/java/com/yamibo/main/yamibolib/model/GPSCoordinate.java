@@ -1,6 +1,6 @@
 package com.yamibo.main.yamibolib.model;
 
-import android.location.Location;
+
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -24,6 +24,7 @@ public class GPSCoordinate implements Parcelable {
     private final double longitude;
     private final int accuracy;
     private final long timeOffset;
+    //TODO QUESTION:这是什么?
     private final String source;
 
     public GPSCoordinate(double lat, double lon) {
@@ -39,7 +40,7 @@ public class GPSCoordinate implements Parcelable {
         this.source = source;
     }
 
-    public GPSCoordinate(Location l) {
+    public GPSCoordinate(android.location.Location l) {
         this.latitude = l.getLatitude();
         this.longitude = l.getLongitude();
         this.accuracy = (int) l.getAccuracy();

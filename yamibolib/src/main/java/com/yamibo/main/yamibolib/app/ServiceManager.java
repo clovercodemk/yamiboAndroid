@@ -50,6 +50,7 @@ public class ServiceManager {
         }
         if ("location".equals(name)) {
             if (location == null) {
+                //TODO remark:one additional instance
                 location = new DefaultLocationService(context);
             }
             return location;
