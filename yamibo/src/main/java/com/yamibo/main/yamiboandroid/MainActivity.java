@@ -64,12 +64,8 @@ public class MainActivity extends ActionBarActivity
     /**
      * DEBUG_CODE to remove
      */
-    BDLocationService bdLocationService;
-    LocationClient bdClient;
-    BDLocationListener myListener;
-    BDLocationListener listener1;
-    LocationClientOption option;
- /*   protected LocationClient mBDLocationClient = null;
+  protected LocationClient mBDLocationClient = null;
+    BDLocationListener listner1=null;
     private LocationClientOption.LocationMode tempMode = LocationClientOption.LocationMode.Hight_Accuracy;
     private String tempcoor="gcj02";
     private int frequence=1000;
@@ -89,7 +85,7 @@ public class MainActivity extends ActionBarActivity
         option.setIsNeedAddress(isNeedAddress);
         mBDLocationClient.setLocOption(option);
         com.yamibo.main.yamibolib.Utils.Log.i("DEBUG", "initiate Location done");
-    }*/
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,34 +106,18 @@ public class MainActivity extends ActionBarActivity
          */
 //        locationService=new DefaultLocationService(getApplicationContext());
   //      locationService.start();
-/*
-        bdLocationService=new BDLocationService(getApplicationContext(),1000,BDLocationService.PROVIDER_NETWORK,null);
-        bdLocationService.addListener(new LocationListener() {
-            @Override
-            public void onLocationChanged(LocationService sender) {
-                return;
-            }
-        });
-        bdLocationService.start();
 
-*/
-        //TODO debug function
-        bdClient=new LocationClient(this.getApplicationContext());
-        listener1= new BDLocationListener() {
+        
+        mBDLocationClient=new LocationClient(getApplicationContext());
+        listner1= new BDLocationListener() {
             @Override
             public void onReceiveLocation(BDLocation bdLocation) {
-                debugLog("MAIN　listener1 position recevied!");
+                debugLog("listner1 onReceiveLocatoin!!");
             }
         };
-        bdClient.registerLocationListener(listener1);
-        option = new LocationClientOption();
-        option.setLocationMode(LocationClientOption.LocationMode.Hight_Accuracy);//设置定位模式
-        option.setCoorType("bd0911");//返回的定位结果是百度经纬度，默认值gcj02
-        option.setScanSpan(3000);
-        option.setIsNeedAddress(true);
-        bdClient.setLocOption(option);
-        debugLog("MAIN initiate Location done");
-        bdClient.start();
+        mBDLocationClient.registerLocationListener(listner1);
+        applyOption();
+        mBDLocationClient.start();
 
 
         debugButton=(Button)findViewById(R.id.debug_button);
@@ -291,13 +271,13 @@ public class MainActivity extends ActionBarActivity
            /**
             * debug
             */
-           if(bdLocationService!=null){
+          /* if(bdLocationService!=null){
                bdLocationService.refresh();
                debugLog("bdLocationService refresh");
-           }
+           }*/
 
-           if(bdClient!=null){
-               int code=bdClient.requestLocation();
+           if(mBDLocationClient!=null){
+               int code=mBDLocationClient.requestLocation();
                debugLog("bdLocationService refresh with code "+code);
            }
 
